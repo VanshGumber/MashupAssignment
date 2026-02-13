@@ -1,7 +1,6 @@
-import streamlit as st, os, zipfile, smtplib
+import streamlit as st, os, subprocess, zipfile, smtplib
 from yt_dlp import YoutubeDL
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from pydub import AudioSegment
 from email.message import EmailMessage
 
 st.title("Mashup Generator")
@@ -24,6 +23,8 @@ if st.button("Generate Mashup"):
 
     try:
         os.makedirs("v",exist_ok=True)
+        os.makedirs("a",exist_ok=True)
+        os.makedirs("c",exist_ok=True)
 
         st.write("Downloading videos...")
         y={'format':'mp4','outtmpl':'v/%(id)s.%(ext)s','quiet':True}
@@ -34,20 +35,38 @@ if st.button("Generate Mashup"):
         if not vids:
             st.error("No videos found"); st.stop()
 
-        parts=[]
-        st.write("Processing audio...")
+        st.write("Extracting audio...")
+        auds=[]
         for v in vids:
-            a=v.replace(".mp4",".mp3")
+            a="a/"+os.path.basename(v).replace(".mp4",".mp3")
             VideoFileClip(v).audio.write_audiofile(a,verbose=False,logger=None)
-            seg=AudioSegment.from_file(a)[:sec*1000]
-            name="c_"+os.path.basename(a)
-            seg.export(name,format="mp3")
-            parts.append(name)
+            auds.append(a)
+
+        st.write("Trimming...")
+        clips=[]
+        for a in auds:
+            out="c/"+os.path.basename(a)
+            subprocess.run([
+                "ffmpeg","-y","-i",a,
+                "-t",str(sec),
+                "-acodec","copy",
+                out
+            ],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            clips.append(out)
 
         st.write("Merging...")
-        m=AudioSegment.empty()
-        for p in parts: m+=AudioSegment.from_file(p)
-        m.export("out.mp3",format="mp3")
+        with open("list.txt","w") as f:
+            for c in clips:
+                f.write(f"file '{os.path.abspath(c)}'\n")
+
+        subprocess.run([
+            "ffmpeg","-y",
+            "-f","concat",
+            "-safe","0",
+            "-i","list.txt",
+            "-c","copy",
+            "out.mp3"
+        ],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
         with zipfile.ZipFile("out.zip","w") as z: z.write("out.mp3")
 
