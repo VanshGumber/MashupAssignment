@@ -44,7 +44,11 @@ if st.button("Generate Mashup"):
 
         with YoutubeDL(y) as d:
             r=d.extract_info(f"ytsearch{n}:{singer}",download=True)
-            vids=[f"v/{e['id']}.{e['ext']}" for e in r['entries']]
+            vids=[]
+            for e in r['entries']:
+                path=f"v/{e['id']}.{e['ext']}"
+                if os.path.exists(path):
+                    vids.append(path)
 
         if not vids:
             st.error("No videos downloaded"); st.stop()
