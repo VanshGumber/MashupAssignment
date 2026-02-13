@@ -27,18 +27,28 @@ if st.button("Generate Mashup"):
         os.makedirs("c",exist_ok=True)
 
         st.write("Downloading videos...")
-        y={'format':'mp4','outtmpl':'v/%(id)s.%(ext)s','quiet':True}
+        y={
+            'format':'bestaudio/best',
+            'outtmpl':'v/%(id)s.%(ext)s',
+            'quiet':True,
+            'noplaylist':True,
+            'http_headers':{
+                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Accept-Language':'en-US,en;q=0.5'
+            }
+        }
+
         with YoutubeDL(y) as d:
             r=d.extract_info(f"ytsearch{n}:{singer}",download=True)
-            vids=[f"v/{e['id']}.mp4" for e in r['entries']]
+            vids=[f"v/{e['id']}.{e['ext']}" for e in r['entries']]
 
         if not vids:
-            st.error("No videos found"); st.stop()
+            st.error("No videos downloaded"); st.stop()
 
         st.write("Extracting audio...")
         auds=[]
         for v in vids:
-            a="a/"+os.path.basename(v).replace(".mp4",".mp3")
+            a="a/"+os.path.basename(v).rsplit(".",1)[0]+".mp3"
             VideoFileClip(v).audio.write_audiofile(a,verbose=False,logger=None)
             auds.append(a)
 
@@ -68,7 +78,8 @@ if st.button("Generate Mashup"):
             "out.mp3"
         ],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
-        with zipfile.ZipFile("out.zip","w") as z: z.write("out.mp3")
+        with zipfile.ZipFile("out.zip","w") as z:
+            z.write("out.mp3")
 
         email_from = st.secrets["EMAIL"]
         app_pass = st.secrets["PASSWORD"]
