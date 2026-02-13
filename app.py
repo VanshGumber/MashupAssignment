@@ -27,28 +27,37 @@ if st.button("Generate Mashup"):
         os.makedirs("c",exist_ok=True)
 
         st.write("Downloading videos...")
+
         y={
             'format':'bestaudio/best',
             'outtmpl':'v/%(id)s.%(ext)s',
             'quiet':True,
             'noplaylist':True,
+            'ignoreerrors':True,
+            'extract_flat':'discard_in_playlist',
             'extractor_args':{
                 'youtube':{
-                    'player_client':['android']
+                    'player_client':['android'],
+                    'skip':['hls','dash']
                 }
             },
             'http_headers':{
-                'User-Agent':'com.google.android.youtube/17.31.35 (Linux; U; Android 11)',
+                'User-Agent':'com.google.android.youtube/17.31.35 (Linux; U; Android 11)'
             }
         }
 
         with YoutubeDL(y) as d:
-            r=d.extract_info(f"ytsearch{n}:{singer}",download=True)
+            r=d.extract_info(f"ytsearch{n*3}:{singer} official audio",download=True)
+
             vids=[]
-            for e in r['entries']:
+            for e in r.get('entries',[]):
+                if not e: 
+                    continue
                 path=f"v/{e['id']}.{e['ext']}"
                 if os.path.exists(path):
                     vids.append(path)
+                if len(vids)>=n:
+                    break
 
         if not vids:
             st.error("No videos downloaded"); st.stop()
